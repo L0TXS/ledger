@@ -1,6 +1,6 @@
 // Offline cache. Bump VERSION (and APP_VERSION in js/version.js) for every release,
 // otherwise phones keep the old files.
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const CACHE = 'ledger-' + VERSION;
 const ASSETS = [
   './',

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 (23 November 2026)
+
+- Install app button on the welcome screen, main list, and Settings, using Chrome's install prompt, with menu instructions as a fallback
+
 ## 0.1.0 (22 November 2026)
 
 First working version as an installable web app, ported from the native Android draft.

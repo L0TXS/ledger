@@ -88,6 +88,41 @@ function askPassword({ title, message, confirm = false, remember = false }) {
   });
 }
 
+// ---------- install ----------
+let installPrompt = null;
+const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+});
+window.addEventListener('appinstalled', () => {
+  installPrompt = null;
+  for (const el of $$('[data-install]')) el.hidden = true;
+  toast('Ledger is installed. Open it from your home screen.');
+});
+
+async function installApp() {
+  if (installPrompt) {
+    const p = installPrompt;
+    installPrompt = null;
+    p.prompt();
+    const { outcome } = await p.userChoice;
+    if (outcome === 'dismissed') toast('Install cancelled. Tap Install app to try again.');
+    return;
+  }
+  openModal(`<div class="dlg"><h2>Install Ledger</h2>
+    <p>Chrome hasn't offered the install yet. You can install from its menu instead:</p>
+    <ol class="bul"><li>Tap <b>⋮</b> in Chrome's top-right corner.</li>
+    <li>Tap <b>Add to Home screen</b> or <b>Install app</b>.</li>
+    <li>Choose <b>Install</b>.</li></ol>
+    <p class="muted">If the menu shows <b>Open in app</b>, Ledger is already installed; look for it in your app drawer. Installing only works in a normal Chrome tab, not Incognito or a browser opened from inside another app.</p>
+    <div class="dlg-actions"><button type="button" class="btn filled" data-x="ok">OK</button></div></div>`, (m) => {
+    m.querySelector('[data-x=ok]').onclick = closeModal;
+  });
+}
+const globalHandlers = { install: () => installApp() };
+
 // ---------- lock handling ----------
 let hiddenAt = 0;
 let suppressLock = false;   // set while a file picker or share sheet is open
@@ -162,7 +197,7 @@ let handlers = {};
 app.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
   if (!el || !app.contains(el)) return;
-  const fn = handlers[el.dataset.act];
+  const fn = handlers[el.dataset.act] || globalHandlers[el.dataset.act];
   if (fn) { e.preventDefault(); fn(el, e); }
 });
 
@@ -242,6 +277,7 @@ function viewList() {
     ${bar('Ledger', '', iconBtn('star', 'Rating variables', 'vars') + iconBtn('tune', 'Settings', 'settings') + (vault.hasPin() ? iconBtn('lock', 'Lock now', 'lock') : ''))}
     <main class="page">
       ${stale ? `<div class="banner"><span>${s.settings.lastBackup ? `Last backup ${esc(fmtDate(new Date(s.settings.lastBackup).toISOString().slice(0, 10)))}.` : 'Nothing is backed up yet.'} Browser data can be cleared, so keep a backup.</span><button class="btn tonal" data-act="backup">Back up</button></div>` : ''}
+      ${isInstalled() ? '' : '<div class="banner" data-install><span>Install Ledger for offline use and its own home-screen icon.</span><button class="btn tonal" data-act="install">Install app</button></div>'}
       <label class="search">${icon('search')}<input id="q" type="search" placeholder="Search names, notes, features…" value="${esc(ui.query)}" autocomplete="off"></label>
       <div class="chips" role="group" aria-label="Filter">${FILTERS.map((f) => `<button type="button" class="chip" data-act="filter" data-v="${esc(f)}" aria-pressed="${ui.status === f}">${esc(f)}</button>`).join('')}</div>
       <div class="row controls">
@@ -780,6 +816,12 @@ function viewSettings() {
         <label class="check"><input type="checkbox" id="rememberpw"${st.backupPassword ? ' checked' : ''}> Remember backup password on this device</label>
       </div>
 
+      <h2 class="section-h">App</h2>
+      <div class="card col">
+        <p class="sub">${isInstalled() ? 'Ledger is installed and running as an app.' : 'Ledger is running in a browser tab.'}</p>
+        <div class="row"><button class="btn tonal" data-install data-act="install"${isInstalled() ? ' hidden' : ''}>Install app</button></div>
+      </div>
+
       <h2 class="section-h">Appearance</h2>
       <div class="card col"><label class="field"><span>Theme</span><select id="theme">
         ${[['system', 'Match the system'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<option value="${v}"${v === st.theme ? ' selected' : ''}>${l}</option>`).join('')}
@@ -896,6 +938,7 @@ function showWelcome() {
       <p class="err" hidden></p>
       <button class="btn filled">Start</button>
     </form>
+    <button class="btn tonal" type="button" data-install data-act="install"${isInstalled() ? ' hidden' : ''}>Install app</button>
     <button class="btn text" data-act="restore">Restore from a backup instead</button>
     <input type="file" id="wfile" accept=".ledger,application/octet-stream,application/json,*/*" hidden>
   </main>`;
